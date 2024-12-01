@@ -41,6 +41,7 @@ def process_video(video_path, model, frame_skip_interval=2):
     frame_rate = cap.get(cv2.CAP_PROP_FPS)
     predictions = []
     timestamps = []
+    frames = []
     frame_count = 0
 
     # Process frames
@@ -55,11 +56,13 @@ def process_video(video_path, model, frame_skip_interval=2):
             prediction = predict(frame, model)
             predictions.append(prediction)
             timestamps.append(timestamp)
-        
+            #Save plt figure of prediction progress
+            #Save image
+            frames.append(frame)
         frame_count += 1
 
     cap.release()
-    return timestamps, predictions, frame_rate
+    return timestamps, predictions, frame_rate, frames
 
 # Function to visualize the predictions
 def visualize_predictions(timestamps, predictions, frame_rate, save_name):
@@ -73,7 +76,7 @@ def visualize_predictions(timestamps, predictions, frame_rate, save_name):
 
 # Main function
 def main():
-    ckpt = torch.load('/checkpoint/gaorory/14014190/best-model-epoch=2-val_loss=0.50.ckpt')
+    ckpt = torch.load('/scratch/ssd004/scratch/gaorory/best-model-epoch=2-val_loss=0.50.ckpt')
 
     #ckpt = torch.load('/checkpoint/gaorory/14016259/best-model-epoch=4-val_loss=0.47.ckpt')
     #Checkpoint saving is fucked for some reason. Fix the keys:
@@ -91,10 +94,29 @@ def main():
     model.to("cuda")
     model.eval()  # Set model to evaluation mode\
 
-    video_path = 'videos/defect_54m.mp4'
+    video_path = 'videos/defect_101m.mp4'
     save_name = f"pretrained_{video_path.replace("/", "_")}.png"
-    timestamps, predictions, frame_rate = process_video(video_path=video_path, model=model)
+    timestamps, predictions, frame_rate, frames = process_video(video_path=video_path, model=model)
     visualize_predictions(timestamps, predictions, frame_rate, save_name)
-
+    #Save plot viz for every frame:
+    start_ind = 100
+    end_ind = 600
+    timestamps_sub = timestamps[start_ind:end_ind]
+    predictions_sub = predictions[start_ind:end_ind]
+    frames_sub = frames[start_ind:end_ind]
+    for i,_ in enumerate(predictions_sub):
+        print(i)
+        fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20,5), facecolor='black')
+        ax[0].set_facecolor('black')
+        ax[0].plot(timestamps_sub, predictions_sub, color='#7DDA58', linewidth=2)
+        ax[0].plot(timestamps_sub[i], predictions_sub[i], color='red', marker="o", markersize=10)
+        ax[0].set_yticks([0, 1], ['Negative', 'Positive'])
+        ax[0].tick_params(axis='y', colors='white', labelsize=15)
+        ax[0].tick_params(axis='x', colors='white', labelsize=15)
+        ax[0].set_xlabel("Time (s)", color='white', fontsize=15)
+        ax[0].set_title("Predicted probability of defect", color='white', fontsize=15)
+        ax[1].imshow(frames_sub[i])
+        plt.savefig(f"vizs/101m/frame_{i:04d}.png", dpi=100)
+        plt.close()
 if __name__ == "__main__":
     main()
